@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Scanner (Every 3 Seconds)</title>
+    <title>AI Image Scanner (Native WebRTC Version)</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
     
     <style>
@@ -72,11 +72,13 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
-        /* บังคับให้วิดีโอจากเว็บแคมขยายเต็มกรอบ */
-        #webcam-container video, #webcam-container canvas {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
+        /* ใช้แท็กวิดีโอมาตรฐานเพื่อให้เบราว์เซอร์เปิดกล้องได้เสถียรที่สุด */
+        #native-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* ส่องกระจกเงาเหมือนกล้องหน้าทั่วไป */
+            display: none;
         }
 
         .placeholder-text {
@@ -84,6 +86,7 @@
             font-size: 0.9rem;
             position: absolute;
             padding: 0 10px;
+            z-index: 10;
         }
 
         #label-container {
@@ -131,20 +134,23 @@
         
         <div id="webcam-wrapper">
             <div class="placeholder-text" id="placeholder">กรุณากดปุ่มเปิดใช้งานและอนุญาตให้เข้าถึงกล้อง</div>
-            <div id="webcam-container"></div>
+            <!-- ใช้ Native HTML5 Video element แทนกล้องจำลองของสคริปต์เก่า -->
+            <video id="native-video" autoplay playsinline muted></video>
         </div>
         
         <div id="label-container"></div>
         <div id="status-indicator"></div>
     </div>
 
-    <!-- โหลดสคริปต์หลัก -->
+    <!-- โหลดสคริปต์หลักหลักจาก Google -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     
     <script type="text/javascript">
-        const URL = "https://teachablemachine.withgoogle.com/models/hllJv-A0H/";[cite: 1]
-        let model, webcam, labelContainer, maxPredictions;
+        const URL = "https://teachablemachine.withgoogle.com/models/hllJv-A0H/";
+        let model, maxPredictions, labelContainer;
+        let videoElement = document.getElementById("native-video");
+        let localStream = null;
 
         async function init() {
             const startBtn = document.getElementById("start-btn");
@@ -154,33 +160,29 @@
                 startBtn.style.display = "none";
                 placeholder.innerText = "กำลังโหลด AI และเรียกใช้งานกล้อง...";
 
-                // 1. โหลดโมเดล AI
-                model = await tmImage.load(URL + "model.json", URL + "metadata.json");[cite: 1]
-                maxPredictions = model.getTotalClasses();[cite: 1]
+                // 1. โหลดโมเดล AI ของ Teachable Machine
+                model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+                maxPredictions = model.getTotalClasses();
 
-                // 2. ตั้งค่าและเปิดใช้งานกล้องเว็บบลูแคม (ปรับพารามิเตอร์ระบุขนาดเผื่อไว้สำหรับอุปกรณ์บางรุ่น)
-                webcam = new tmImage.Webcam(250, 250, true);[cite: 1]
-                
-                // สั่งขอกล้องจากเบราว์เซอร์
-                await webcam.setup({ facingMode: "user" });[cite: 1]
-                await webcam.play();[cite: 1]
-                
-                // 3. ซ่อน Placeholder และแนบหน้าจอเข้ากับ HTML
+                // 2. เรียกเปิดกล้องผ่านมาตรฐาน WebRTC API ของเบราว์เซอร์โดยตรง (แก้ไขปัญหากล้องไม่ขึ้น)
+                const constraints = {
+                    video: {
+                        width: { ideal: 400 },
+                        height: { ideal: 400 },
+                        facingMode: "user"
+                    },
+                    audio: false
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = localStream;
+                videoElement.style.display = "block";
                 placeholder.style.display = "none";
-                const webcamContainer = document.getElementById("webcam-container");
-                webcamContainer.innerHTML = "";
-                webcamContainer.appendChild(webcam.canvas);[cite: 1]
 
-                // ในเวอร์ชันใหม่ บางครั้งกล้องต้องการ Element วิดีโอจริงในการแสดงผลร่วมด้วย
-                if (webcam.video) {
-                    webcam.video.setAttribute('playsinline', true);
-                    webcam.video.setAttribute('muted', true);
-                }
-
-                // 4. สร้าง UI แสดงผลลัพธ์ข้อมูลเปอร์เซ็นต์
-                labelContainer = document.getElementById("label-container");[cite: 1]
+                // 3. สร้าง UI แสดงแถบวัดเปอร์เซ็นต์ตามคลาสที่มีในโมเดล
+                labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = "";
-                for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+                for (let i = 0; i < maxPredictions; i++) {
                     const item = document.createElement("div");
                     item.className = "predict-item";
                     item.id = `class-row-${i}`;
@@ -193,51 +195,44 @@
                             <div class="progress-bar-fill" id="bar-${i}"></div>
                         </div>
                     `;
-                    labelContainer.appendChild(item);[cite: 1]
+                    labelContainer.appendChild(item);
                 }
 
-                // 5. เริ่มลูปวิดีโอ (อัปเดตเฟรมภาพอย่างต่อเนื่อง)
-                window.requestAnimationFrame(loop);
-
-                // 6. เริ่มต้นวงรอบทำงานทายผลทุกๆ 3 วินาที
+                // 4. สั่งเริ่มทำนายผลลัพธ์รอบแรกทันที และตั้งรอบเวลาสแกนใหม่ทุก 3 วินาที
                 runPredictSchedule();
 
             } catch (error) {
-                console.error("เกิดข้อผิดพลาดในการเปิดระบบ:", error);
-                placeholder.innerText = "❌ ไม่สามารถเข้าถึงกล้องได้\nกรุณาใช้โปรโตคอล https:// หรือรันผ่าน Local Server";
+                console.error("เกิดข้อผิดพลาดรุนแรง:", error);
+                placeholder.innerText = "❌ ไม่สามารถเข้าถึงกล้องได้\n\nเหตุผล: บราวเซอร์ต้องการความปลอดภัยระดับ HTTPS หรือทดสอบผ่านเว็บเซิร์ฟเวอร์จำลอง (Localhost) เท่านั้น";
                 placeholder.style.color = "#EF4444";
                 startBtn.style.display = "block";
                 startBtn.innerText = "ลองใหม่อีกครั้ง";
             }
         }
 
-        async function loop() {
-            if (webcam && webcam.canvas) {
-                webcam.update();[cite: 1]
-            }
-            window.requestAnimationFrame(loop);
-        }
-
-        // ฟังก์ชันสั่งทำนายผลแบบหน่วงเวลารอบต่อรอบ (ปลอดภัยและเสถียรกว่าการใช้ setInterval ซ้อนกัน)
+        // ฟังก์ชันหน่วงเวลารันทำนายผลอย่างปลอดภัยรอบต่อรอบทุกๆ 3 วินาที
         async function runPredictSchedule() {
-            try {
-                await predict();
-                triggerStatusEffect();
-            } catch (err) {
-                console.error("ทำนายผลผิดพลาด:", err);
+            if (localStream && videoElement.readyState >= 3) {
+                try {
+                    await predict();
+                    triggerStatusEffect();
+                } catch (err) {
+                    console.error("ทำนายผลผิดพลาด:", err);
+                }
             }
-            // วนทำงานซ้ำอีกครั้งในอีก 3 วินาทีข้างหน้า
+            // เรียกฟังก์ชันตัวเองซ้ำในอีก 3 วินาทีข้างหน้า
             setTimeout(runPredictSchedule, 3000);
         }
 
         async function predict() {
-            if (!model || !webcam) return;
+            if (!model || !videoElement) return;
             
-            const prediction = await model.predict(webcam.canvas);[cite: 1]
+            // ส่งค่าอิลิเมนต์ <video> ตรงๆ เข้าไปประมวลผลใน AI ของ Teachable Machine
+            const prediction = await model.predict(videoElement);
             
-            for (let i = 0; i < maxPredictions; i++) {[cite: 1]
-                const className = prediction[i].className;[cite: 1]
-                const probability = prediction[i].probability;[cite: 1]
+            for (let i = 0; i < maxPredictions; i++) {
+                const className = prediction[i].className;
+                const probability = prediction[i].probability;
                 const percentage = (probability * 100).toFixed(0);
                 
                 const row = document.getElementById(`class-row-${i}`);
@@ -248,6 +243,7 @@
                     row.querySelector('.class-percent').innerText = percentage + "%";
                     bar.style.width = percentage + "%";
                     
+                    // หากความมั่นใจเกิน 50% ให้ไฮไลต์แถวให้สว่างขึ้น
                     if (probability > 0.5) {
                         row.classList.add('active');
                     } else {
