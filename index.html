@@ -3,68 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine Image Model</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Teachable Machine AI Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     
     <style>
         :root {
             --primary: #4F46E5;
             --primary-hover: #4338CA;
-            --background: #F3F4F6;
-            --card-bg: #FFFFFF;
-            --text-main: #1F2937;
-            --text-muted: #4B5563;
+            --bg: #F3F4F6;
+            --card: #FFFFFF;
+            --text: #1F2937;
+            --text-light: #6B7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background);
-            color: var(--text-main);
-            margin: 0;
-            padding: 0;
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            padding: 20px;
         }
 
-        .container {
-            background-color: var(--card-bg);
-            padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        .card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
             text-align: center;
         }
 
         h1 {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--text-main);
+            margin-bottom: 8px;
         }
 
-        p.subtitle {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            margin-bottom: 2rem;
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 25px;
         }
 
         .btn-start {
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 0.75rem 2rem;
+            padding: 12px 24px;
             font-size: 1rem;
             font-weight: 600;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);
             width: 100%;
-            margin-bottom: 1.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
         }
 
         .btn-start:hover {
@@ -72,22 +74,19 @@
             transform: translateY(-1px);
         }
 
-        .btn-start:active {
-            transform: translateY(1px);
-        }
-
-        #webcam-container {
-            margin: 1.5rem auto;
-            border-radius: 12px;
-            overflow: hidden;
+        #webcam-wrapper {
+            position: relative;
             width: 250px;
             height: 250px;
-            background-color: #E5E7EB;
+            margin: 25px auto;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #E5E7EB;
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 3px solid #E5E7EB;
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+            border: 4px solid #FFF;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
         #webcam-container canvas {
@@ -96,138 +95,201 @@
             object-fit: cover;
         }
 
+        .placeholder-text {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            position: absolute;
+        }
+
         #label-container {
-            margin-top: 1.5rem;
+            margin-top: 20px;
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 12px;
             text-align: left;
         }
 
-        .prediction-row {
-            background-color: #F9FAFB;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            border-left: 4px solid var(--primary);
+        .predict-item {
+            background: #F9FAFB;
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border-left: 4px solid #E5E7EB;
+            transition: all 0.3s ease;
+        }
+
+        .predict-item.active {
+            border-left-color: var(--primary);
+            background: #EEF2FF;
+        }
+
+        .predict-info {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             font-size: 0.95rem;
-            font-weight: 500;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        .prediction-row .class-name {
-            color: var(--text-main);
-        }
-
-        .prediction-row .probability {
-            color: var(--primary);
             font-weight: 600;
         }
 
-        /* สถานะกำลังนับถอยหลังตรวจจับ */
-        .timer-badge {
+        .progress-bar-bg {
+            background: #E5E7EB;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            background: var(--primary);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        #status-indicator {
+            margin-top: 15px;
             font-size: 0.8rem;
-            color: #9CA3AF;
-            margin-top: 0.5rem;
+            color: var(--text-light);
+            font-weight: bold;
+            min-height: 18px;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Teachable Machine</h1>
-        <p class="subtitle">ระบบวิเคราะห์รูปภาพผ่านกล้อง WebCam</p>
+    <div class="card">
+        <h1>Teachable Machine AI</h1>
+        <p class="subtitle">วิเคราะห์ภาพอัตโนมัติอัปเดตทุกๆ 3 วินาที</p>
         
-        <button type="button" class="btn-start" id="start-btn" onclick="init()">เปิดใช้งานกล้อง</button>
+        <button type="button" class="btn-start" id="start-btn" onclick="init()">เปิดใช้งานระบบ</button>
         
-        <div id="webcam-container">
-            <!-- กล้องจะแสดงที่นี่ -->
-            <span style="color: #9CA3AF; font-size: 0.9rem;">ยังไม่ได้เปิดกล้อง</span>
+        <div id="webcam-wrapper">
+            <div class="placeholder-text" id="placeholder">ระบบยังไม่เริ่มทำงาน</div>
+            <div id="webcam-container"></div>
         </div>
         
         <div id="label-container">
-            <!-- ผลลัพธ์จะแสดงที่นี่ -->
+            <!-- รายการ Class และแถบเปอร์เซ็นต์จะถูกสร้างขึ้นอัตโนมัติที่นี่เมื่อเปิดโปรแกรม -->
         </div>
-        <div class="timer-badge" id="timer-status"></div>
+
+        <div id="status-indicator"></div>
     </div>
 
-    <!-- Scripts -->
+    <!-- ลิงก์ Library หลักจากต้นฉบับ -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     
     <script type="text/javascript">
-        const URL = "https://teachablemachine.withgoogle.com/models/hllJv-A0H/";
+        // ลิงก์โมเดลจากต้นฉบับของคุณ
+        const URL = "https://teachablemachine.withgoogle.com/models/hllJv-A0H/";[cite: 1]
         let model, webcam, labelContainer, maxPredictions;
-        let predictInterval;
+        let isModelLoaded = false;
 
         async function init() {
-            // ซ่อนปุ่มเปิดกล้องหลังจากกด เพื่อป้องกันการกดซ้ำ
-            document.getElementById("start-btn").style.display = "none";
-            document.getElementById("webcam-container").innerHTML = ""; 
+            try {
+                document.getElementById("start-btn").style.display = "none";
+                document.getElementById("placeholder").innerText = "กำลังโหลดโมเดลและเปิดกล้อง...";
 
-            const modelURL = URL + "model.json";
-            const metadataURL = URL + "metadata.json";
+                const modelURL = URL + "model.json";[cite: 1]
+                const metadataURL = URL + "metadata.json";[cite: 1]
 
-            model = await tmImage.load(modelURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
+                // โหลดโมเดล
+                model = await tmImage.load(modelURL, metadataURL);[cite: 1]
+                maxPredictions = model.getTotalClasses();[cite: 1]
 
-            const flip = true; 
-            // ปรับขนาดกล้องให้แสดงผลเต็มพื้นที่การ์ดสวยงามขึ้น (250x250)
-            webcam = new tmImage.Webcam(250, 250, flip); 
-            await webcam.setup(); 
-            await webcam.play();
-            
-            // ใช้สำหรับอัปเดตเฟรมภาพของกล้องให้เคลื่อนไหวลื่นไหลตลอดเวลา
-            window.requestAnimationFrame(loop);
+                // ตั้งค่าเว็บบลูแคม
+                const flip = true; 
+                webcam = new tmImage.Webcam(250, 250, flip);[cite: 1]
+                await webcam.setup();[cite: 1]
+                await webcam.play();[cite: 1]
+                
+                // เริ่มลูปแสดงวิดีโอจากกล้อง (ให้กล้องเคลื่อนไหวลื่นไหลตลอดเวลา)
+                window.requestAnimationFrame(loop);
 
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
-            labelContainer = document.getElementById("label-container");
-            
-            // สร้างโครงสร้างแถวแสดงผลลัพธ์ล่วงหน้าเพื่อให้ CSS จัดการได้สวยงาม
-            for (let i = 0; i < maxPredictions; i++) { 
-                const row = document.createElement("div");
-                row.className = "prediction-row";
-                row.innerHTML = `<span class="class-name">-</span><span class="probability">0.00%</span>`;
-                labelContainer.appendChild(row);
-            }
+                // ซ่อนข้อความแจ้งเตือนและส่งภาพเข้า Container
+                document.getElementById("placeholder").style.display = "none";
+                document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
+                
+                labelContainer = document.getElementById("label-container");[cite: 1]
+                labelContainer.innerHTML = ""; // ล้างค่าเก่า
 
-            // สั่งทำนายผลครั้งแรกทันทีที่เปิดกล้อง
-            await predict();
+                // สร้าง UI แถบวัดเปอร์เซ็นต์แบบไดนามิกตามจำนวนคลาสที่มีในโมเดล
+                for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+                    const item = document.createElement("div");
+                    item.className = "predict-item";
+                    item.id = `class-row-${i}`;
+                    item.innerHTML = `
+                        <div class="predict-info">
+                            <span class="class-name">กำลังโหลด...</span>
+                            <span class="class-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="bar-${i}"></div>
+                        </div>
+                    `;
+                    labelContainer.appendChild(item);[cite: 1]
+                }
 
-            // ตั้งเวลาให้ฟังก์ชัน predict ทำงานซ้ำทุกๆ 3000 มิลลิวินาที (3 วินาที) แทน loop เดิม
-            predictInterval = setInterval(async () => {
+                // เรียกทำนายครั้งแรกทันที
                 await predict();
-                flashStatus();
-            }, 3000);
+
+                // สั่งให้ทำนายผลซ้ำ "ทุกๆ 3 วินาที" (3000ms)
+                setInterval(async () => {
+                    await predict();
+                    triggerStatusEffect();
+                }, 3000);
+
+            } catch (error) {
+                console.error(error);
+                alert("ไม่สามารถเปิดกล้องหรือโหลดโมเดลได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงกล้อง หรือรันไฟล์ผ่านเซิร์ฟเวอร์จำลอง (Local Server)");
+                document.getElementById("start-btn").style.display = "block";
+                document.getElementById("placeholder").innerText = "เกิดข้อผิดพลาดในการติดตั้ง";
+            }
         }
 
         async function loop() {
-            webcam.update(); // อัปเดตภาพจากกล้องให้เคลื่อนไหวตลอดเวลา
+            webcam.update();[cite: 1]
             window.requestAnimationFrame(loop);
         }
 
         async function predict() {
-            const prediction = await model.predict(webcam.canvas);
-            for (let i = 0; i < maxPredictions; i++) {
-                const className = prediction[i].className;
-                // แปลงทศนิยมเป็นเปอร์เซ็นต์เพื่อให้ผู้ใช้เข้าใจง่ายขึ้น (เช่น 0.95 -> 95.00%)
-                const probability = (prediction[i].probability * 100).toFixed(2) + "%";
+            if (!model || !webcam) return;
+            
+            const prediction = await model.predict(webcam.canvas);[cite: 1]
+            
+            for (let i = 0; i < maxPredictions; i++) {[cite: 1]
+                const className = prediction[i].className;[cite: 1]
+                const probability = prediction[i].probability; // ค่าระบุความน่าจะเป็น 0 - 1[cite: 1]
+                const percentage = (probability * 100).toFixed(0); // แปลงเป็นเปอร์เซ็นต์เลขกลมๆ
                 
-                const row = labelContainer.childNodes[i];
-                row.querySelector('.class-name').innerText = className;
-                row.querySelector('.probability').innerText = probability;
+                const row = document.getElementById(`class-row-${i}`);
+                const bar = document.getElementById(`bar-${i}`);
+                
+                if (row && bar) {
+                    // อัปเดตข้อความและเปอร์เซ็นต์
+                    row.querySelector('.class-name').innerText = className;
+                    row.querySelector('.class-percent').innerText = percentage + "%";
+                    bar.style.width = percentage + "%";
+                    
+                    // ไฮไลต์แถวที่ความมั่นใจสูงเกิน 50% ให้เด่นขึ้นมา
+                    if (probability > 0.5) {
+                        row.classList.add('active');
+                    } else {
+                        row.classList.remove('active');
+                    }
+                }
             }
         }
 
-        // เอฟเฟกต์แสดงสถานะเมื่อเกิดการสแกนทุก 3 วินาที
-        function flashStatus() {
-            const statusText = document.getElementById("timer-status");
-            statusText.innerText = "✓ อัปเดตผลการวิเคราะห์แล้ว";
+        function triggerStatusEffect() {
+            const statusEl = document.getElementById("status-indicator");
+            statusEl.innerText = "⏳ กำลังประมวลผลรอบถัดไป...";
+            statusEl.style.color = "#9CA3AF";
+            
             setTimeout(() => {
-                statusText.innerText = "กำลังรอรอบถัดไป (ทุกๆ 3 วินาที)...";
-            }, 1000);
+                statusEl.innerText = "⚡ อัปเดตผลลัพธ์แล้ว";
+                statusEl.style.color = "#10B981";
+            }, 400);
         }
     </script>
 </body>
