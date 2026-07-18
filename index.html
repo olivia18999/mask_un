@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine AI Scanner</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>AI Image Scanner (Every 3 Seconds)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -13,14 +13,9 @@
             --bg: #F3F4F6;
             --card: #FFFFFF;
             --text: #1F2937;
-            --text-light: #6B7280;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Sarabun', sans-serif;
@@ -43,36 +38,24 @@
             text-align: center;
         }
 
-        h1 {
-            font-size: 1.6rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            margin-bottom: 25px;
-        }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; font-weight: 600; }
+        .subtitle { font-size: 0.9rem; color: #6B7280; margin-bottom: 25px; }
 
         .btn-start {
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 14px 24px;
             font-size: 1rem;
             font-weight: 600;
             border-radius: 10px;
             cursor: pointer;
             width: 100%;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
             box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
         }
 
-        .btn-start:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-1px);
-        }
+        .btn-start:hover { background-color: var(--primary-hover); }
 
         #webcam-wrapper {
             position: relative;
@@ -89,16 +72,18 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
-        #webcam-container canvas {
+        /* บังคับให้วิดีโอจากเว็บแคมขยายเต็มกรอบ */
+        #webcam-container video, #webcam-container canvas {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover;
+            object-fit: cover !important;
         }
 
         .placeholder-text {
-            color: var(--text-light);
+            color: #6B7280;
             font-size: 0.9rem;
             position: absolute;
+            padding: 0 10px;
         }
 
         #label-container {
@@ -117,7 +102,6 @@
             flex-direction: column;
             gap: 6px;
             border-left: 4px solid #E5E7EB;
-            transition: all 0.3s ease;
         }
 
         .predict-item.active {
@@ -132,27 +116,9 @@
             font-weight: 600;
         }
 
-        .progress-bar-bg {
-            background: #E5E7EB;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            background: var(--primary);
-            height: 100%;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        #status-indicator {
-            margin-top: 15px;
-            font-size: 0.8rem;
-            color: var(--text-light);
-            font-weight: bold;
-            min-height: 18px;
-        }
+        .progress-bar-bg { background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.2s; }
+        #status-indicator { margin-top: 15px; font-size: 0.8rem; color: #9CA3AF; min-height: 18px; }
     </style>
 </head>
 <body>
@@ -164,63 +130,63 @@
         <button type="button" class="btn-start" id="start-btn" onclick="init()">เปิดใช้งานระบบ</button>
         
         <div id="webcam-wrapper">
-            <div class="placeholder-text" id="placeholder">ระบบยังไม่เริ่มทำงาน</div>
+            <div class="placeholder-text" id="placeholder">กรุณากดปุ่มเปิดใช้งานและอนุญาตให้เข้าถึงกล้อง</div>
             <div id="webcam-container"></div>
         </div>
         
-        <div id="label-container">
-            <!-- รายการ Class และแถบเปอร์เซ็นต์จะถูกสร้างขึ้นอัตโนมัติที่นี่เมื่อเปิดโปรแกรม -->
-        </div>
-
+        <div id="label-container"></div>
         <div id="status-indicator"></div>
     </div>
 
-    <!-- ลิงก์ Library หลักจากต้นฉบับ -->
+    <!-- โหลดสคริปต์หลัก -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     
     <script type="text/javascript">
-        // ลิงก์โมเดลจากต้นฉบับของคุณ
         const URL = "https://teachablemachine.withgoogle.com/models/hllJv-A0H/";[cite: 1]
         let model, webcam, labelContainer, maxPredictions;
-        let isModelLoaded = false;
 
         async function init() {
+            const startBtn = document.getElementById("start-btn");
+            const placeholder = document.getElementById("placeholder");
+            
             try {
-                document.getElementById("start-btn").style.display = "none";
-                document.getElementById("placeholder").innerText = "กำลังโหลดโมเดลและเปิดกล้อง...";
+                startBtn.style.display = "none";
+                placeholder.innerText = "กำลังโหลด AI และเรียกใช้งานกล้อง...";
 
-                const modelURL = URL + "model.json";[cite: 1]
-                const metadataURL = URL + "metadata.json";[cite: 1]
-
-                // โหลดโมเดล
-                model = await tmImage.load(modelURL, metadataURL);[cite: 1]
+                // 1. โหลดโมเดล AI
+                model = await tmImage.load(URL + "model.json", URL + "metadata.json");[cite: 1]
                 maxPredictions = model.getTotalClasses();[cite: 1]
 
-                // ตั้งค่าเว็บบลูแคม
-                const flip = true; 
-                webcam = new tmImage.Webcam(250, 250, flip);[cite: 1]
-                await webcam.setup();[cite: 1]
+                // 2. ตั้งค่าและเปิดใช้งานกล้องเว็บบลูแคม (ปรับพารามิเตอร์ระบุขนาดเผื่อไว้สำหรับอุปกรณ์บางรุ่น)
+                webcam = new tmImage.Webcam(250, 250, true);[cite: 1]
+                
+                // สั่งขอกล้องจากเบราว์เซอร์
+                await webcam.setup({ facingMode: "user" });[cite: 1]
                 await webcam.play();[cite: 1]
                 
-                // เริ่มลูปแสดงวิดีโอจากกล้อง (ให้กล้องเคลื่อนไหวลื่นไหลตลอดเวลา)
-                window.requestAnimationFrame(loop);
+                // 3. ซ่อน Placeholder และแนบหน้าจอเข้ากับ HTML
+                placeholder.style.display = "none";
+                const webcamContainer = document.getElementById("webcam-container");
+                webcamContainer.innerHTML = "";
+                webcamContainer.appendChild(webcam.canvas);[cite: 1]
 
-                // ซ่อนข้อความแจ้งเตือนและส่งภาพเข้า Container
-                document.getElementById("placeholder").style.display = "none";
-                document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
-                
+                // ในเวอร์ชันใหม่ บางครั้งกล้องต้องการ Element วิดีโอจริงในการแสดงผลร่วมด้วย
+                if (webcam.video) {
+                    webcam.video.setAttribute('playsinline', true);
+                    webcam.video.setAttribute('muted', true);
+                }
+
+                // 4. สร้าง UI แสดงผลลัพธ์ข้อมูลเปอร์เซ็นต์
                 labelContainer = document.getElementById("label-container");[cite: 1]
-                labelContainer.innerHTML = ""; // ล้างค่าเก่า
-
-                // สร้าง UI แถบวัดเปอร์เซ็นต์แบบไดนามิกตามจำนวนคลาสที่มีในโมเดล
+                labelContainer.innerHTML = "";
                 for (let i = 0; i < maxPredictions; i++) {[cite: 1]
                     const item = document.createElement("div");
                     item.className = "predict-item";
                     item.id = `class-row-${i}`;
                     item.innerHTML = `
                         <div class="predict-info">
-                            <span class="class-name">กำลังโหลด...</span>
+                            <span class="class-name">กำลังประมวลผล...</span>
                             <span class="class-percent">0%</span>
                         </div>
                         <div class="progress-bar-bg">
@@ -230,26 +196,38 @@
                     labelContainer.appendChild(item);[cite: 1]
                 }
 
-                // เรียกทำนายครั้งแรกทันที
-                await predict();
+                // 5. เริ่มลูปวิดีโอ (อัปเดตเฟรมภาพอย่างต่อเนื่อง)
+                window.requestAnimationFrame(loop);
 
-                // สั่งให้ทำนายผลซ้ำ "ทุกๆ 3 วินาที" (3000ms)
-                setInterval(async () => {
-                    await predict();
-                    triggerStatusEffect();
-                }, 3000);
+                // 6. เริ่มต้นวงรอบทำงานทายผลทุกๆ 3 วินาที
+                runPredictSchedule();
 
             } catch (error) {
-                console.error(error);
-                alert("ไม่สามารถเปิดกล้องหรือโหลดโมเดลได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงกล้อง หรือรันไฟล์ผ่านเซิร์ฟเวอร์จำลอง (Local Server)");
-                document.getElementById("start-btn").style.display = "block";
-                document.getElementById("placeholder").innerText = "เกิดข้อผิดพลาดในการติดตั้ง";
+                console.error("เกิดข้อผิดพลาดในการเปิดระบบ:", error);
+                placeholder.innerText = "❌ ไม่สามารถเข้าถึงกล้องได้\nกรุณาใช้โปรโตคอล https:// หรือรันผ่าน Local Server";
+                placeholder.style.color = "#EF4444";
+                startBtn.style.display = "block";
+                startBtn.innerText = "ลองใหม่อีกครั้ง";
             }
         }
 
         async function loop() {
-            webcam.update();[cite: 1]
+            if (webcam && webcam.canvas) {
+                webcam.update();[cite: 1]
+            }
             window.requestAnimationFrame(loop);
+        }
+
+        // ฟังก์ชันสั่งทำนายผลแบบหน่วงเวลารอบต่อรอบ (ปลอดภัยและเสถียรกว่าการใช้ setInterval ซ้อนกัน)
+        async function runPredictSchedule() {
+            try {
+                await predict();
+                triggerStatusEffect();
+            } catch (err) {
+                console.error("ทำนายผลผิดพลาด:", err);
+            }
+            // วนทำงานซ้ำอีกครั้งในอีก 3 วินาทีข้างหน้า
+            setTimeout(runPredictSchedule, 3000);
         }
 
         async function predict() {
@@ -259,19 +237,17 @@
             
             for (let i = 0; i < maxPredictions; i++) {[cite: 1]
                 const className = prediction[i].className;[cite: 1]
-                const probability = prediction[i].probability; // ค่าระบุความน่าจะเป็น 0 - 1[cite: 1]
-                const percentage = (probability * 100).toFixed(0); // แปลงเป็นเปอร์เซ็นต์เลขกลมๆ
+                const probability = prediction[i].probability;[cite: 1]
+                const percentage = (probability * 100).toFixed(0);
                 
                 const row = document.getElementById(`class-row-${i}`);
                 const bar = document.getElementById(`bar-${i}`);
                 
                 if (row && bar) {
-                    // อัปเดตข้อความและเปอร์เซ็นต์
                     row.querySelector('.class-name').innerText = className;
                     row.querySelector('.class-percent').innerText = percentage + "%";
                     bar.style.width = percentage + "%";
                     
-                    // ไฮไลต์แถวที่ความมั่นใจสูงเกิน 50% ให้เด่นขึ้นมา
                     if (probability > 0.5) {
                         row.classList.add('active');
                     } else {
@@ -283,13 +259,13 @@
 
         function triggerStatusEffect() {
             const statusEl = document.getElementById("status-indicator");
-            statusEl.innerText = "⏳ กำลังประมวลผลรอบถัดไป...";
+            statusEl.innerText = "⏳ กำลังรอประมวลผลรอบถัดไป...";
             statusEl.style.color = "#9CA3AF";
             
             setTimeout(() => {
-                statusEl.innerText = "⚡ อัปเดตผลลัพธ์แล้ว";
+                statusEl.innerText = "⚡ อัปเดตผล AI สำเร็จ";
                 statusEl.style.color = "#10B981";
-            }, 400);
+            }, 300);
         }
     </script>
 </body>
